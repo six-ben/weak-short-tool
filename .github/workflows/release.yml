@@ -1,0 +1,124 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build exe
+        run: |
+          pyinstaller --name "WeakShortTool" --windowed --onefile --noconfirm --clean main.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WeakShortTool-Windows-x64
+          path: dist/WeakShortTool.exe
+
+  build-macos-intel:
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build app
+        run: |
+          pyinstaller --name "WeakShortTool" --windowed --onefile --noconfirm --clean main.py
+
+      - name: Create zip
+        run: |
+          cd dist
+          zip -r WeakShortTool-macOS-Intel.zip WeakShortTool.app 2>/dev/null || zip -r WeakShortTool-macOS-Intel.zip WeakShortTool
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WeakShortTool-macOS-Intel
+          path: dist/WeakShortTool-macOS-Intel.zip
+
+  build-macos-arm:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build app
+        run: |
+          pyinstaller --name "WeakShortTool" --windowed --onefile --noconfirm --clean main.py
+
+      - name: Create zip
+        run: |
+          cd dist
+          zip -r WeakShortTool-macOS-AppleSilicon.zip WeakShortTool.app 2>/dev/null || zip -r WeakShortTool-macOS-AppleSilicon.zip WeakShortTool
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WeakShortTool-macOS-AppleSilicon
+          path: dist/WeakShortTool-macOS-AppleSilicon.zip
+
+  release:
+    needs: [build-windows, build-macos-intel, build-macos-arm]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release files
+        run: |
+          mkdir release
+          cp artifacts/WeakShortTool-Windows-x64/WeakShortTool.exe release/WeakShortTool-Windows-x64.exe
+          cp artifacts/WeakShortTool-macOS-Intel/WeakShortTool-macOS-Intel.zip release/
+          cp artifacts/WeakShortTool-macOS-AppleSilicon/WeakShortTool-macOS-AppleSilicon.zip release/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: WeakShortTool ${{ github.ref_name }}
+          body: |
+            ## Weak Short 批量审核工具 ${{ github.ref_name }}
+
+            从测试文件中自动提取并归类 Weak Short-Circuit Test 结果。
+
+            ### 下载
+
+            | 平台 | 文件 | 说明 |
+            |------|------|------|
+            | Windows 10/11 (64-bit) | `WeakShortTool-Windows-x64.exe` | 便携版，双击直接运行 |
+            | macOS (Intel) | `WeakShortTool-macOS-Intel.zip` | 解压后运行 WeakShortTool |
+            | macOS (Apple Silicon) | `WeakShortTool-macOS-AppleSilicon.zip` | M1/M2/M3/M4 芯片 Mac |
+
+            ### macOS 首次运行提示
+            如果 macOS 提示"无法打开"，请右键点击应用 → 选择「打开」→ 确认打开。
+          files: release/*
+          draft: false
+          prerelease: false
