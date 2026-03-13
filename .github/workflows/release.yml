@@ -31,8 +31,8 @@ jobs:
           name: WeakShortTool-Windows-x64
           path: dist/WeakShortTool.exe
 
-  build-macos-intel:
-    runs-on: macos-13
+  build-macos:
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
 
@@ -43,50 +43,51 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Build app
+      - name: Build app bundle
         run: |
-          pyinstaller --name "WeakShortTool" --windowed --onefile --noconfirm --clean main.py
+          pyinstaller --name "WeakShortTool" --windowed --onedir --noconfirm --clean main.py
 
-      - name: Create zip
+      - name: Create PKG installer
         run: |
-          cd dist
-          zip -r WeakShortTool-macOS-Intel.zip WeakShortTool.app 2>/dev/null || zip -r WeakShortTool-macOS-Intel.zip WeakShortTool
+          APP_PATH="dist/WeakShortTool.app"
+          if [ ! -d "$APP_PATH" ]; then
+            mkdir -p "$APP_PATH/Contents/MacOS"
+            cp dist/WeakShortTool "$APP_PATH/Contents/MacOS/WeakShortTool"
+            chmod +x "$APP_PATH/Contents/MacOS/WeakShortTool"
+            cat > "$APP_PATH/Contents/Info.plist" << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key><string>WeakShortTool</string>
+            <key>CFBundleExecutable</key><string>WeakShortTool</string>
+            <key>CFBundleIdentifier</key><string>com.sixben.weakshort</string>
+            <key>CFBundleVersion</key><string>1.0.0</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+          </dict>
+          </plist>
+          PLIST
+          fi
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: WeakShortTool-macOS-Intel
-          path: dist/WeakShortTool-macOS-Intel.zip
+          INSTALL_DIR=$(mktemp -d)
+          mkdir -p "$INSTALL_DIR/Applications"
+          cp -R "$APP_PATH" "$INSTALL_DIR/Applications/"
 
-  build-macos-arm:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Build app
-        run: |
-          pyinstaller --name "WeakShortTool" --windowed --onefile --noconfirm --clean main.py
-
-      - name: Create zip
-        run: |
-          cd dist
-          zip -r WeakShortTool-macOS-AppleSilicon.zip WeakShortTool.app 2>/dev/null || zip -r WeakShortTool-macOS-AppleSilicon.zip WeakShortTool
+          pkgbuild \
+            --root "$INSTALL_DIR" \
+            --identifier "com.sixben.weakshort" \
+            --version "1.0.0" \
+            --install-location "/" \
+            "dist/WeakShortTool-macOS-AppleSilicon.pkg"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: WeakShortTool-macOS-AppleSilicon
-          path: dist/WeakShortTool-macOS-AppleSilicon.zip
+          path: dist/WeakShortTool-macOS-AppleSilicon.pkg
 
   release:
-    needs: [build-windows, build-macos-intel, build-macos-arm]
+    needs: [build-windows, build-macos]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -97,8 +98,7 @@ jobs:
         run: |
           mkdir release
           cp artifacts/WeakShortTool-Windows-x64/WeakShortTool.exe release/WeakShortTool-Windows-x64.exe
-          cp artifacts/WeakShortTool-macOS-Intel/WeakShortTool-macOS-Intel.zip release/
-          cp artifacts/WeakShortTool-macOS-AppleSilicon/WeakShortTool-macOS-AppleSilicon.zip release/
+          cp artifacts/WeakShortTool-macOS-AppleSilicon/WeakShortTool-macOS-AppleSilicon.pkg release/
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -113,12 +113,12 @@ jobs:
 
             | 平台 | 文件 | 说明 |
             |------|------|------|
-            | Windows 10/11 (64-bit) | `WeakShortTool-Windows-x64.exe` | 便携版，双击直接运行 |
-            | macOS (Intel) | `WeakShortTool-macOS-Intel.zip` | 解压后运行 WeakShortTool |
-            | macOS (Apple Silicon) | `WeakShortTool-macOS-AppleSilicon.zip` | M1/M2/M3/M4 芯片 Mac |
+            | **Windows 10/11** | `WeakShortTool-Windows-x64.exe` | 64-bit 便携版，双击直接运行 |
+            | **macOS (Apple Silicon)** | `WeakShortTool-macOS-AppleSilicon.pkg` | M1/M2/M3/M4 芯片，双击安装到 Applications |
 
-            ### macOS 首次运行提示
-            如果 macOS 提示"无法打开"，请右键点击应用 → 选择「打开」→ 确认打开。
+            > **macOS 首次运行提示**：如果提示"无法打开"，请前往 系统设置 → 隐私与安全性 → 点击「仍要打开」。
+            >
+            > **Intel Mac 用户**：Apple Silicon 版本可通过 Rosetta 2 在 Intel Mac 上运行。
           files: release/*
           draft: false
           prerelease: false
