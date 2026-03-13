@@ -6,7 +6,7 @@
 
 - **批量解析**：支持 `.txt`、`.docx` 格式的测试结果文件
 - **智能提取**：自动定位 `Weak Short-Circuit Test` 区段，正则匹配 NG/OK 结果
-- **数据提取**：NG 文件自动提取 `Mul Short` 和 `Mutual Short` 下的测试数据
+- **数据提取**：NG 文件自动提取 `Mul Short` 和 `Mutual Short`（或 `GND Short`）下的测试数据
 - **文件归类**：NG / OK 文件自动分拣到对应文件夹
 - **Excel 报表**：生成 `output.xlsx`，Sheet1 为 NG 结果（含详细数据），Sheet2 为 OK 结果
 - **跨平台**：支持 macOS 和 Windows
@@ -24,9 +24,10 @@
 
 **Sheet1（NG）：**
 
-| 文件名称 | 结果1（Mul Short:） | 结果2（Mutual Short:） |
-|---------|-------------------|---------------------|
-| xxx_Fail.txt | Tx10: 46.63(kΩ) / Rx16: 46.63(kΩ) | Tx10 with Rx16: 46.63(kΩ) |
+| 文件名称 | 结果1（Mul Short:） | 结果2（Mutual Short:） | 备注 |
+|---------|-------------------|---------------------|------|
+| xxx_Fail.txt | Tx10: 46.63(kΩ) / Rx16: 46.63(kΩ) | Tx10 with Rx16: 46.63(kΩ) | |
+| xxx_Fail2.txt | Guard: 46.63(kΩ) | Guard with GND: 46.80(kΩ) | GND Short |
 
 **Sheet2（OK）：**
 
@@ -38,7 +39,8 @@
 
 1. 定位 `======Test Item: -------- Weak Short-Circuit Test` 到 `======Test Item: -------- INT Pin Test` 之间的内容
 2. 正则匹配 `Weak Short` + `NG` → 失败；`Weak Short` + `OK` → 通过
-3. NG 时提取 `Mul Short:` 和 `Mutual Short:` 下的数据行
+3. NG 时提取 `Mul Short:` 下的数据行作为结果1
+4. 结果2优先提取 `Mutual Short:` 下的数据行；若不存在，则提取 `GND Short:` 下的数据行
 
 ## 快速开始
 

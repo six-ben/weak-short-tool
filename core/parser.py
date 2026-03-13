@@ -47,7 +47,7 @@ def judge_result(section_text):
 
 def extract_mul_short(section_text):
     """提取 Mul Short: 下的所有数据行"""
-    pattern = r'Mul\s*Short:\s*\n(.*?)(?=Error Ground|Mutual\s*Short:|//|$)'
+    pattern = r'Mul\s*Short:\s*\n(.*?)(?=Error Ground|Mutual\s*Short:|GND\s*Short:|//|$)'
     match = re.search(pattern, section_text, re.DOTALL | re.IGNORECASE)
     if not match:
         return ''
@@ -69,13 +69,27 @@ def extract_mutual_short(section_text):
     return '\n'.join(lines)
 
 
+def extract_gnd_short(section_text):
+    """提取 GND Short: 下的所有数据行"""
+    pattern = r'GND\s*Short:\s*\n(.*?)(?=//|$)'
+    match = re.search(pattern, section_text, re.DOTALL | re.IGNORECASE)
+    if not match:
+        return ''
+
+    raw = match.group(1).strip()
+    lines = [line.strip() for line in raw.split('\n') if line.strip()]
+    return '\n'.join(lines)
+
+
 class ParseResult:
-    def __init__(self, filepath, filename, status, mul_short='', mutual_short='', error=''):
+    def __init__(self, filepath, filename, status, mul_short='', mutual_short='',
+                 result2_type='', error=''):
         self.filepath = filepath
         self.filename = filename
         self.status = status        # 'NG' / 'OK' / 'ERROR'
         self.mul_short = mul_short
         self.mutual_short = mutual_short
+        self.result2_type = result2_type  # 'Mutual Short' / 'GND Short' / ''
         self.error = error
 
     def __repr__(self):
@@ -103,11 +117,18 @@ def parse_file(filepath):
 
     mul_short = ''
     mutual_short = ''
+    result2_type = ''
     if status == 'NG':
         mul_short = extract_mul_short(section)
         mutual_short = extract_mutual_short(section)
+        if mutual_short:
+            result2_type = 'Mutual Short'
+        else:
+            mutual_short = extract_gnd_short(section)
+            if mutual_short:
+                result2_type = 'GND Short'
 
-    return ParseResult(filepath, filename, status, mul_short, mutual_short)
+    return ParseResult(filepath, filename, status, mul_short, mutual_short, result2_type)
 
 
 def parse_files(file_list):

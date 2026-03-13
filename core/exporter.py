@@ -46,13 +46,16 @@ def export_xlsx(ng_results, ok_results, output_path):
     # --- Sheet1: NG ---
     ws_ng = wb.active
     ws_ng.title = 'NG'
-    _style_header(ws_ng, ['文件名称', '结果1（Mul Short:）', '结果2（Mutual Short:）'])
+    _style_header(ws_ng, ['文件名称', '结果1（Mul Short:）', '结果2（Mutual Short:）', '备注'])
 
     for row_idx, r in enumerate(ng_results, 2):
+        remark = 'GND Short' if r.result2_type == 'GND Short' else ''
+
         name_cell = ws_ng.cell(row=row_idx, column=1, value=r.filename)
         mul_cell = ws_ng.cell(row=row_idx, column=2, value=r.mul_short)
         mut_cell = ws_ng.cell(row=row_idx, column=3, value=r.mutual_short)
-        for c in (name_cell, mul_cell, mut_cell):
+        remark_cell = ws_ng.cell(row=row_idx, column=4, value=remark)
+        for c in (name_cell, mul_cell, mut_cell, remark_cell):
             c.alignment = CELL_ALIGN
             c.border = THIN_BORDER
 
